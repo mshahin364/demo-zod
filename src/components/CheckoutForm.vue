@@ -1,104 +1,46 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { z } from 'zod'
-import isCreditCard from 'validator/lib/isCreditCard'
-import isISBN from 'validator/lib/isISBN'
-import isISO31661Alpha3 from 'validator/lib/isISO31661Alpha3'
+import { checkoutSchema, type Checkout, type CheckoutErrors } from '@/checkout'
 import FormError from '@/components/FormError.vue'
 
-const checkoutFormSchema = z.object({
-  customerInfo: z.object({
-    name: z.string().min(20).max(50),
-    email: z.string().email(),
-    phoneNumber: z.string().regex(/^\d{10}$/)
-  }),
-  shippingAddress: z.object({
-    addressLine1: z.string().min(5).max(100),
-    addressLine2: z.string().max(100),
-    city: z.string().min(2).max(50),
-    state: z.string().min(2).max(50),
-    postalCode: z.string().regex(/^\d{5}$/),
-    country: z.string().refine(val => isISO31661Alpha3(val), {
-      message: 'Invalid country code'
-    })
-  }),
-  items: z
-    .array(
-      z.object({
-        isbn: z.string().refine(val => isISBN(val), { message: 'Invalid ISBN' }),
-        quantity: z.number().int().min(1).max(5)
-      })
-    )
-    .min(1),
-  paymentDetails: z.object({
-    cardNumber: z.string().refine(val => isCreditCard(val), {
-      message: 'Invalid credit card number'
-    }),
-    expirationDate: z
-      .string()
-      .regex(/^\d{2}\/\d{2}$/)
-      .refine(
-        expirationDate => {
-          const [currentMonth, currentYear] = new Date()
-            .toLocaleDateString('en', { month: '2-digit', year: '2-digit' })
-            .split('/')
-            .map(i => parseInt(i))
-          const [month, year] = expirationDate.split('/').map(i => parseInt(i))
-          return year > currentYear || (year === currentYear && month >= currentMonth)
-        },
-        { message: 'Expiration date cannot be in the past' }
-      ),
-    cvv: z.string().regex(/^\d{3}$/)
-  })
-})
+const errors = ref<CheckoutErrors>()
 
-type CheckoutFormType = z.infer<typeof checkoutFormSchema>
-type FormattedErrors = z.inferFormattedError<typeof checkoutFormSchema>
-
-const form = ref<CheckoutFormType>({
+const form = ref<Checkout>({
   customerInfo: {
-    name: 'John Doe',
-    email: 'john@example.com',
-    phoneNumber: '1234567890'
+    name: '',
+    email: '',
+    phoneNumber: ''
   },
   shippingAddress: {
-    addressLine1: '123 Main St',
-    addressLine2: 'Apt 101',
-    city: 'Anytown',
-    state: 'California',
-    postalCode: '12345',
-    country: 'USA'
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: ''
   },
-  items: [
-    { isbn: '109815326X', quantity: 2 },
-    { isbn: '0786962461', quantity: 1 }
-  ],
+  items: [],
   paymentDetails: {
-    cardNumber: '4503300000000008',
-    expirationDate: '03/24',
-    cvv: '123'
+    cardNumber: '',
+    expirationDate: '',
+    cvv: ''
   }
 })
 
-const errors = ref<FormattedErrors>()
+function submit() {
+  const result = checkoutSchema.safeParse(form.value)
 
-/*
-const form = ref<CheckoutFormType>({
-  customerInfo: { name: '', email: '', phoneNumber: '' },
-  shippingAddress: { addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: '' },
-  items: [],
-  paymentDetails: { cardNumber: '', expirationDate: '', cvv: '' }
-})
-*/
+  if (!result.success) {
+    errors.value = result.error.format()
+    return
+  }
 
-function submitForm() {
-  const validation = checkoutFormSchema.safeParse(form.value)
-  errors.value = validation.success ? undefined : validation.error.format()
+  console.log(result.data)
 }
 </script>
 
 <template>
-  <form @submit.prevent="submitForm">
+  <form @submit.prevent="submit">
     <fieldset class="grid gap-4">
       <legend>Personal Details</legend>
       <label>
@@ -178,19 +120,32 @@ function submitForm() {
     </fieldset>
 
     <fieldset class="grid gap-4">
-      <legend>Items</legend>
-      <div v-for="(item, index) in form.items" :key="index" class="grid grid-cols-2 gap-4">
-        <label>
+      <legend>Books</legend>
+      <div v-for="(item, index) in form.items" :key="index" class="flex gap-4 items-start">
+        <label class="flex-1">
           <span>ISBN:</span>
           <input v-model="item.isbn" type="text" required />
           <FormError :errors="errors?.items?.[index]?.isbn?._errors" />
         </label>
-        <label>
+        <label class="flex-1">
           <span>Quantity:</span>
           <input v-model="item.quantity" type="number" required />
           <FormError :errors="errors?.items?.[index]?.quantity?._errors" />
         </label>
+        <button class="text-red-500 pt-8" @click="form.items.splice(index, 1)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="h-4 fill-current">
+            <path
+              d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z" />
+          </svg>
+        </button>
       </div>
+      <button type="button" class="text-blue-500 flex items-center gap-2" @click="form.items.push({ isbn: '', quantity: 0 })">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="h-4 fill-current">
+          <path
+            d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zM200 344V280H136c-13.3 0-24-10.7-24-24s10.7-24 24-24h64V168c0-13.3 10.7-24 24-24s24 10.7 24 24v64h64c13.3 0 24 10.7 24 24s-10.7 24-24 24H248v64c0 13.3-10.7 24-24 24s-24-10.7-24-24z" />
+        </svg>
+        <span>Add Book</span>
+      </button>
     </fieldset>
 
     <button type="submit">Checkout</button>
@@ -214,7 +169,11 @@ input {
   @apply w-full border border-gray-300 rounded px-2 py-1;
 }
 
-button[type=submit] {
+button[type='button'] {
+  @apply text-blue-500;
+}
+
+button[type='submit'] {
   @apply bg-blue-500 text-white p-2 rounded w-full text-center;
 }
 </style>
