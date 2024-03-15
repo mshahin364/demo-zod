@@ -32,9 +32,12 @@ function submit() {
 
   if (!result.success) {
     errors.value = result.error.format()
+    console.log(errors.value)
     return
   }
 
+  errors.value = undefined
+  alert('Success!')
   console.log(result.data)
 }
 </script>
@@ -55,8 +58,8 @@ function submit() {
           <FormError :errors="errors?.customerInfo?.email?._errors" />
         </label>
         <label>
-          <span>Phone Number:</span>
-          <input v-model="form.customerInfo.phoneNumber" type="tel" pattern="^\d{10}$" required />
+          <span>Phone Number (10 digits):</span>
+          <input v-model="form.customerInfo.phoneNumber" type="tel" required />
           <FormError :errors="errors?.customerInfo?.phoneNumber?._errors" />
         </label>
       </div>
@@ -89,11 +92,11 @@ function submit() {
         </label>
         <label>
           <span>Postal Code:</span>
-          <input v-model="form.shippingAddress.postalCode" type="text" pattern="^\d{5}$" required />
+          <input v-model="form.shippingAddress.postalCode" type="text" required />
           <FormError :errors="errors?.shippingAddress?.postalCode?._errors" />
         </label>
         <label>
-          <span>Country:</span>
+          <span>Country Code:</span>
           <input v-model="form.shippingAddress.country" type="text" required />
           <FormError :errors="errors?.shippingAddress?.country?._errors" />
         </label>
@@ -108,13 +111,13 @@ function submit() {
         <FormError :errors="errors?.paymentDetails?.cardNumber?._errors" />
       </label>
       <label>
-        <span>Expiration Date:</span>
-        <input v-model="form.paymentDetails.expirationDate" type="text" pattern="^\d{2}/\d{2}$" required />
+        <span>Expiration (MM/YY):</span>
+        <input v-model="form.paymentDetails.expirationDate" type="text" required />
         <FormError :errors="errors?.paymentDetails?.expirationDate?._errors" />
       </label>
       <label>
         <span>CVV:</span>
-        <input v-model="form.paymentDetails.cvv" type="text" pattern="^\d{3}$" required />
+        <input v-model="form.paymentDetails.cvv" type="text" required />
         <FormError :errors="errors?.paymentDetails?.cvv?._errors" />
       </label>
     </fieldset>
@@ -146,6 +149,7 @@ function submit() {
         </svg>
         <span>Add Book</span>
       </button>
+      <FormError :errors="errors?.items?._errors" />
     </fieldset>
 
     <button type="submit">Checkout</button>
